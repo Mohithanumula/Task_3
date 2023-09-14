@@ -1,0 +1,292 @@
+# Dockerfile for the Java REST API application
+
+FROM openjdk:18-alpine
+
+WORKDIR /app
+
+COPY pom.xml .
+RUN mvn clean package
+
+COPY target/server.war .
+
+EXPOSE 8080
+
+CMD ["java", "-jar", "server.war"]
+
+
+# Dockerfile for the MongoDB database
+
+FROM mongo:latest
+
+EXPOSE 27017
+
+CMD ["mongod"]
+
+  # Deployment for the Java REST API application
+
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: server-deployment
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: server
+  template:
+    metadata:
+      labels:
+        app: server
+    spec:
+      containers:
+      - name: server
+        image: server-image
+        imagePullPolicy: Never
+        env:
+        - name: MONGO_HOST
+          value: mongodb-service
+        - name: MONGO_PORT
+          value: "27017"
+        ports:
+        - containerPort: 8080
+
+# Service for the Java REST API application
+
+apiVersion: v1
+kind: Service
+metadata:
+  name: server-service
+spec:
+  selector:
+    app: server
+  ports:
+  - protocol: TCP
+    port: 8080
+    targetPort: 8080
+
+# Deployment for the MongoDB database
+
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: mongodb-deployment
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: mongodb
+  template:
+    metadata:
+      labels:
+        app: mongodb
+    spec:
+      containers:
+      - name: mongodb
+        image: mongodb-image
+        imagePullPolicy: Never
+        ports:
+        - containerPort: 27017
+
+# Service for the MongoDB database
+
+apiVersion: v1
+kind: Service
+metadata:
+  name: mongodb-service
+spec:
+  selector:
+    app: mongodb
+  ports:
+  - protocol: TCP
+    port: 27017
+    targetPort: 27017
+
+# PersistentVolume for the MongoDB data
+
+apiVersion: v1
+kind: PersistentVolume
+metadata:
+  name: mongodb-pv
+spec:
+  accessModes:
+    - ReadWriteOnce
+  capacity:
+    storage: 1Gi
+  hostPath:
+    path: /data/mongodb
+
+# PersistentVolumeClaim for the MongoDB data
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: mongodb-pvc
+spec:
+  accessModes:
+    - ReadWriteOnce
+  resources:
+    requests:
+      storage: 1Gi
+  selector:
+    matchLabels:
+      app: mongodb
+
+
+Dockerfiles
+
+Dockerfile
+# Dockerfile for the Java REST API application
+
+FROM openjdk:18-alpine
+
+WORKDIR /app
+
+COPY pom.xml .
+RUN mvn clean package
+
+COPY target/server.war .
+
+EXPOSE 8080
+
+CMD ["java", "-jar", "server.war"]
+Use code with caution. Learn more
+Dockerfile
+# Dockerfile for the MongoDB database
+
+FROM mongo:latest
+
+EXPOSE 27017
+
+CMD ["mongod"]
+Use code with caution. Learn more
+Kubernetes YAML manifests
+
+YAML
+# Deployment for the Java REST API application
+
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: server-deployment
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: server
+  template:
+    metadata:
+      labels:
+        app: server
+    spec:
+      containers:
+      - name: server
+        image: server-image
+        imagePullPolicy: Never
+        env:
+        - name: MONGO_HOST
+          value: mongodb-service
+        - name: MONGO_PORT
+          value: "27017"
+        ports:
+        - containerPort: 8080
+
+# Service for the Java REST API application
+
+apiVersion: v1
+kind: Service
+metadata:
+  name: server-service
+spec:
+  selector:
+    app: server
+  ports:
+  - protocol: TCP
+    port: 8080
+    targetPort: 8080
+
+# Deployment for the MongoDB database
+
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: mongodb-deployment
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: mongodb
+  template:
+    metadata:
+      labels:
+        app: mongodb
+    spec:
+      containers:
+      - name: mongodb
+        image: mongodb-image
+        imagePullPolicy: Never
+        ports:
+        - containerPort: 27017
+
+# Service for the MongoDB database
+
+apiVersion: v1
+kind: Service
+metadata:
+  name: mongodb-service
+spec:
+  selector:
+    app: mongodb
+  ports:
+  - protocol: TCP
+    port: 27017
+    targetPort: 27017
+
+# PersistentVolume for the MongoDB data
+
+apiVersion: v1
+kind: PersistentVolume
+metadata:
+  name: mongodb-pv
+spec:
+  accessModes:
+    - ReadWriteOnce
+  capacity:
+    storage: 1Gi
+  hostPath:
+    path: /data/mongodb
+
+# PersistentVolumeClaim for the MongoDB data
+
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: mongodb-pvc
+spec:
+  accessModes:
+    - ReadWriteOnce
+  resources:
+    requests:
+      storage: 1Gi
+  selector:
+    matchLabels:
+      app: mongodb
+Use code with caution. Learn more
+Deploying the application
+
+// Start a single-node local Kubernetes cluster using Docker Desktop, Kind, or Minikube.
+// Deploy MongoDB to the cluster using the following command:
+kubectl apply -f mongodb-deployment.yaml
+kubectl apply -f mongodb-service.yaml
+kubectl apply -f mongodb-pv.yaml
+kubectl apply -f mongodb-pvc.yaml
+// Wait for MongoDB to be ready:
+kubectl rollout status deployment/mongodb-deployment
+// Deploy the Java REST API application to the cluster using the following command:
+kubectl apply -f server-deployment.yaml
+kubectl apply -f server-service.yaml
+// Waiting for the Java REST API application to be ready:
+kubectl rollout status deployment/server-deployment
+// Accessing the application
+
+// To access the Java REST API application, we can use the following command to port forward the service to our local machine:
+
+kubectl port-forward service/server-service 8080:8080
